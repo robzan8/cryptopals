@@ -1,8 +1,10 @@
 package cryptopals
 
 import (
+	"bufio"
 	"log"
 	"math/rand"
+	"os"
 	"reflect"
 	"testing"
 )
@@ -68,12 +70,28 @@ func TestDeviation(t *testing.T) {
 }
 
 func TestChallenge3(t *testing.T) {
-	xored := decodeHex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
-	for i := 0; i < 256; i++ {
-		text := singleXor(xored, byte(i))
-		if isEnglish(text) {
-			t.Log(string(text))
-			t.Log(deviation(englishFreqs, frequencies(text)))
+	text := decryptSingleXor(decodeHex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736"))
+	if text == nil {
+		t.Fatal("coudn't decrypt text.")
+	}
+	t.Log(string(text))
+	t.Log(deviation(englishFreqs, frequencies(text)))
+}
+
+// Challenge 4
+func TestChallenge4(t *testing.T) {
+	file, err := os.Open("challenge-data/4.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := decryptSingleXor(decodeHex(scanner.Text()))
+		if line != nil {
+			t.Log(string(line))
 		}
+	}
+	if err := scanner.Err(); err != nil {
+		t.Fatal(err)
 	}
 }

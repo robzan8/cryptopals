@@ -101,3 +101,13 @@ func singleXor(text []byte, c byte) []byte {
 	}
 	return res
 }
+
+func decryptSingleXor(xored []byte) []byte {
+	for i := 0; i < 256; i++ {
+		text := singleXor(xored, byte(i))
+		if isEnglish(text) {
+			return text
+		}
+	}
+	return nil
+}
