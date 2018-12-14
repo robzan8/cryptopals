@@ -37,7 +37,7 @@ func TestXor(t *testing.T) {
 // Challenge 3
 
 func TestFrequencies(t *testing.T) {
-	var sum float64
+	var sum float32
 	for _, f := range englishFreqs {
 		sum += f
 	}
@@ -45,7 +45,10 @@ func TestFrequencies(t *testing.T) {
 		t.Fatal("Sum of frequencies is not 1.")
 	}
 	freqs := frequencies([]byte("abcc"))
-	expected := map[byte]float64{'a': 0.25, 'b': 0.25, 'c': 0.5}
+	expected := make([]float32, asciiLimit)
+	expected['a'] = 0.25
+	expected['b'] = 0.25
+	expected['c'] = 0.5
 	if !reflect.DeepEqual(freqs, expected) {
 		t.Fatalf("frequencies(\"abcc\") wrong; expected %v, got %v.\n", expected, freqs)
 	}
@@ -56,7 +59,10 @@ func TestDeviation(t *testing.T) {
 	if deviation(f, f) != 0 {
 		t.Fatal("deviation(f, f) is not zero.")
 	}
-	dev := deviation(map[byte]float64{'a': 1, 'b': 1, 'c': 0.5}, map[byte]float64{'b': 1, 'c': 1, 'd': 0})
+	f, g := make([]float32, asciiLimit), make([]float32, asciiLimit)
+	f['a'], f['b'], f['c'] = 1, 1, 0.5
+	g['b'], g['c'], g['d'] = 1, 1, 0
+	dev := deviation(f, g)
 	expected := 1 + 0 + 0.25 + 0
 	if dev != expected {
 		log.Fatalf("Wrong deviation({a:1, b:1, c:0.5}, {b:1, c:1, d:0}); expected %f, got %f.\n", expected, dev)
@@ -84,14 +90,27 @@ func TestChallenge4(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer file.Close()
 	scanner := bufio.NewScanner(file)
+	i := 1
 	for scanner.Scan() {
 		line := decryptSingleXor(decodeHex(scanner.Text()))
 		if line != nil {
 			t.Log(string(line))
+			t.Logf("line number is %d", i)
 		}
+		i++
 	}
 	if err := scanner.Err(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func BenchmarkChallenge4(b *testing.B) {
+	buf := make([]byte, 100)
+	rand.Seed(666)
+	for i := 0; i < b.N; i++ {
+		rand.Read(buf)
+		decryptSingleXor(buf)
 	}
 }
