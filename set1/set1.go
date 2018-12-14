@@ -104,13 +104,9 @@ func isEnglish(text []byte) bool {
 	return deviation(englishFreqs, frequencies(text)) <= 0.04
 }
 
-func singleXor(text []byte, c byte) []byte {
-	return xor(text, []byte{c})
-}
-
 func decryptSingleXor(xored []byte) []byte {
 	for i := 0; i < 256; i++ {
-		text := singleXor(xored, byte(i))
+		text := xor(xored, []byte{byte(i)})
 		if isEnglish(text) {
 			return text
 		}
