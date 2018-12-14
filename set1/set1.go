@@ -42,6 +42,14 @@ func xor(text, key []byte) []byte {
 		panic("xor: key can't be empty")
 	}
 	res := make([]byte, len(text))
+	if len(key) == 1 {
+		// Fast path.
+		k := key[0]
+		for i := range text {
+			res[i] = text[i] ^ k
+		}
+		return res
+	}
 	for i := range text {
 		res[i] = text[i] ^ key[i%len(key)]
 	}
