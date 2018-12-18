@@ -4,6 +4,9 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"io/ioutil"
+	"log"
+	"math"
+	"math/bits"
 )
 
 func decodeHex(s string) []byte {
@@ -99,19 +102,106 @@ func deviation(f, g []float32) float64 {
 	return dev
 }
 
-// Not sophisticated, but distinguishes english text from random junk.
-func isEnglish(text []byte) bool {
-	return deviation(englishFreqs, frequencies(text)) <= 0.04
+func scoreEnglish(text []byte) float64 {
+	return -deviation(englishFreqs, frequencies(text))
 }
 
-func decryptSingleXor(xored []byte) []byte {
+func decryptSingleXor(cypher []byte) []byte {
+	var plain []byte
+	maxScore := math.Inf(-1)
 	for i := 0; i < 256; i++ {
-		text := xor(xored, []byte{byte(i)})
-		if isEnglish(text) {
-			return text
+		text := xor(cypher, []byte{byte(i)})
+		s := scoreEnglish(text)
+		if s > maxScore {
+			maxScore = s
+			plain = text
 		}
 	}
-	return nil
+	return plain
 }
 
 // Challenge 5: see func xor
+
+// Challenge 6
+func editDistance(a, b []byte) int {
+	if len(a) != len(b) {
+		panic("editDistance: length mismatch.")
+	}
+	var dist int
+	for i := range a {
+		dist += bits.OnesCount8(a[i] ^ b[i])
+	}
+	return dist
+}
+
+func editDistPerBit(a, b []byte) float64 {
+	return float64(editDistance(a, b)) / float64(len(a)*8)
+}
+
+func decryptVigenereSize(cypher []byte, keysize int) []byte {
+	plain := make([]byte, len(cypher))
+	var buf []byte
+	for offset := 0; offset < keysize; offset++ {
+		buf = buf[0:0]
+		for i := offset; i < len(cypher); i += keysize {
+			buf = append(buf, cypher[i])
+		}
+		buf = decryptSingleXor(buf)
+		for i := range buf {
+			plain[offset+i*keysize] = buf[i]
+		}
+	}
+	return plain
+}
+
+func decryptVigenere(cypher []byte) (plain, key []byte) {
+	if len(cypher) < 1024 {
+		panic("decryptVigenere: cyphertext too short.")
+	}
+
+	score1 := scoreEnglish(decryptSingleXor(cypher[0:asciiLimit]))
+	log.Printf("score1: %f\n", score1)
+
+	score2 := math.Inf(-1)
+	keysize2 := 0
+	for ks := 2; ks <= 20; ks++ {
+		buf := make([]byte, 0, asciiLimit)
+		for i := 0; i < len(cypher); i += ks {
+			buf = append(buf, cypher[i])
+			if len(buf) == cap(buf) {
+				break
+			}
+		}
+		score := scoreEnglish(decryptSingleXor(buf))
+		if score > score2 {
+			score2 = score
+			keysize2 = ks
+		}
+	}
+	log.Printf("score2: %f\n", score2)
+
+	minDist := math.Inf(1)
+	keysize3 := 0
+	for ks := 21; ks <= 40; ks++ {
+		dist := (editDistPerBit(cypher[0:ks], cypher[ks:ks*2]) + editDistPerBit(cypher[ks*2:ks*3], cypher[ks*3:ks*4])) / 2
+		if dist < minDist {
+			minDist = dist
+			keysize3 = ks
+		}
+	}
+	score3 := scoreEnglish(decryptVigenereSize(cypher, keysize3))
+	log.Printf("score3: %f\n", score3)
+
+	if score1 <= score2 && score1 <= score3 {
+		plain = decryptSingleXor(cypher)
+		key = xor(cypher[0:1], plain[0:1])
+		return
+	}
+	keysize := keysize3
+	if score2 <= score3 {
+		keysize = keysize2
+	}
+	plain = decryptVigenereSize(cypher, keysize)
+	key = xor(cypher[0:keysize], plain[0:keysize])
+	return
+}

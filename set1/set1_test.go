@@ -2,7 +2,9 @@ package cryptopals
 
 import (
 	"bufio"
+	"io/ioutil"
 	"log"
+	"math"
 	"math/rand"
 	"os"
 	"reflect"
@@ -75,13 +77,14 @@ func TestDeviation(t *testing.T) {
 	t.Log(deviation(englishFreqs, frequencies(r)))
 }
 
+func isEnglish(text []byte) bool {
+	return scoreEnglish(text) >= -0.035
+}
+
 func TestChallenge3(t *testing.T) {
 	text := decryptSingleXor(decodeHex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736"))
-	if text == nil {
-		t.Fatal("coudn't decrypt text.")
-	}
 	t.Log(string(text))
-	t.Log(deviation(englishFreqs, frequencies(text)))
+	t.Log(scoreEnglish(text))
 }
 
 // Challenge 4
@@ -92,18 +95,20 @@ func TestChallenge4(t *testing.T) {
 	}
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
-	i := 1
+	maxScore := math.Inf(-1)
+	var plain []byte
 	for scanner.Scan() {
 		line := decryptSingleXor(decodeHex(scanner.Text()))
-		if line != nil {
-			t.Log(string(line))
-			t.Logf("line number is %d", i)
+		s := scoreEnglish(line)
+		if s > maxScore {
+			maxScore = s
+			plain = line
 		}
-		i++
 	}
 	if err := scanner.Err(); err != nil {
 		t.Fatal(err)
 	}
+	t.Log(string(plain))
 }
 
 func BenchmarkChallenge4(b *testing.B) {
@@ -121,6 +126,31 @@ func TestRepeatingXor(t *testing.T) {
 	encrypted := encodeHex(xor(text, []byte("ICE")))
 	expected := "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"
 	if encrypted != expected {
-		t.Fatalf("Challemge 5 failed; expected:\n%s\ngot:\n%s\n", expected, encrypted)
+		t.Fatalf("Challenge 5 failed; expected:\n%s\ngot:\n%s\n", expected, encrypted)
 	}
+}
+
+// Challenge 6
+func TestEditDistance(t *testing.T) {
+	dist := editDistance([]byte("this is a test"), []byte("wokka wokka!!!"))
+	if dist != 37 {
+		t.Fatalf("Challenge 6 fail: expected editDistance == 37, got: %d\n.", dist)
+	}
+	text := []byte("Make sure your code agrees before you proceed")
+	dist1 := editDistPerBit(text[0:20], text[20:40])
+	dist2 := editDistPerBit(xor(text[0:20], []byte("wonderfulwonderfulwo")), xor(text[20:40], []byte("erfulwonderfulwonder")))
+	if dist1 >= dist2 {
+		t.Fatalf("editDistPerBit: unexpected result")
+	}
+	t.Log(dist1, dist2)
+}
+
+func TestVigenere(t *testing.T) {
+	cypher, err := ioutil.ReadFile("challenge-data/6.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cypher = decodeBase64(string(cypher))
+	_, key := decryptVigenere(cypher)
+	t.Log(string(key))
 }
