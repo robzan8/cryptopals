@@ -153,8 +153,8 @@ func editDistPerBit(a, b []byte) float64 {
 	return float64(editDistance(a, b)) / float64(len(a)*8)
 }
 
-func decryptVigenereSize(cypher []byte, score func([]byte) float64, keysize int) []byte {
-	plain := make([]byte, len(cypher))
+func decryptVigenereSize(cypher []byte, score func([]byte) float64, keysize int) (plain, key []byte) {
+	plain = make([]byte, len(cypher))
 	var buf []byte
 	for offset := 0; offset < keysize; offset++ {
 		buf = buf[0:0]
@@ -166,7 +166,8 @@ func decryptVigenereSize(cypher []byte, score func([]byte) float64, keysize int)
 			plain[offset+i*keysize] = buf[i]
 		}
 	}
-	return plain
+	key = Xor(cypher[0:keysize], plain[0:keysize])
+	return
 }
 
 const maxKeysize = 40
@@ -175,15 +176,12 @@ func DecryptVigenere(cypher []byte, score func([]byte) float64) (plain, key []by
 	if len(cypher) < maxKeysize*scoreMinLength {
 		panic("decryptVigenere: cyphertext too short.")
 	}
+
 	const scoreChunckLen = 30
-
-	score1 := score(DecryptSingleXor(cypher[0:scoreChunckLen], score))
-	log.Printf("score1: %f\n", score1)
-
-	score2 := math.Inf(-1)
-	keysize2 := 0
 	buf := make([]byte, 0, scoreChunckLen)
-	for ks := 2; ks <= maxKeysize; ks++ {
+	bestScore := math.Inf(-1)
+	keysize := 0
+	for ks := 1; ks <= maxKeysize; ks++ {
 		buf = buf[0:0:scoreChunckLen]
 		for i := 0; i < len(cypher); i += ks {
 			buf = append(buf, cypher[i])
@@ -192,30 +190,22 @@ func DecryptVigenere(cypher []byte, score func([]byte) float64) (plain, key []by
 			}
 		}
 		s := score(DecryptSingleXor(buf, score))
-		if s > score2 {
-			score2 = s
-			keysize2 = ks
+		if s > bestScore {
+			bestScore = s
+			keysize = ks
 		}
 	}
-	log.Printf("score2: %f\n", score2)
 
 	/*minDist := math.Inf(1)
-	keysize3 := 0
+	keysize2 := 0
 	for ks := 21; ks <= 40; ks++ {
 		dist := (editDistPerBit(cypher[0:ks], cypher[ks:ks*2]) + editDistPerBit(cypher[ks:ks*2], cypher[ks*2:ks*3])) / 2
 		if dist < minDist {
 			minDist = dist
-			keysize3 = ks
+			keysize2 = ks
 		}
 	}
-	score3 := score(decryptVigenereSize(cypher, score, keysize3))*/
+	bestScore2 := score(decryptVigenereSize(cypher, score, keysize2))*/
 
-	if score1 >= score2 {
-		plain = DecryptSingleXor(cypher, score)
-		key = Xor(cypher[0:1], plain[0:1])
-		return
-	}
-	plain = decryptVigenereSize(cypher, score, keysize2)
-	key = Xor(cypher[0:keysize2], plain[0:keysize2])
-	return
+	return decryptVigenereSize(cypher, score, keysize)
 }

@@ -165,4 +165,15 @@ func TestVigenere(t *testing.T) {
 	if !isEnglish(plain) || !isEnglish(key) {
 		t.Fatal("Modified challenge 6 failed: result is not english.")
 	}
+
+	// Single xor as special case, retest challenge 3:
+	cypher3 := DecodeHex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
+	cypher = make([]byte, maxKeysize*scoreMinLength)
+	for i := range cypher {
+		cypher[i] = cypher3[i%len(cypher3)]
+	}
+	plain, _ = DecryptVigenere(cypher, ScoreEnglish)
+	if !isEnglish(plain) {
+		t.Fatal("Challenge 6 failed on single xor: result isn't english.")
+	}
 }
