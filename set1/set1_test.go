@@ -2,11 +2,13 @@ package cryptopals
 
 import (
 	"bufio"
+	"crypto/aes"
 	"io/ioutil"
 	"math"
 	"math/rand"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -72,13 +74,13 @@ func isEnglish(text []byte) bool {
 }
 
 func TestChallenge3(t *testing.T) {
-	cypher := DecodeHex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
-	plain := DecryptSingleXor(cypher, ScoreEnglish)
+	ciph := DecodeHex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
+	plain := DecryptSingleXor(ciph, ScoreEnglish)
 	if !isEnglish(plain) {
 		t.Fatal("Challenge 3 failed: result isn't english.")
 	}
 	t.Log(string(plain))
-	t.Log(string(Xor(plain[0:10], cypher[0:10])))
+	t.Log(string(Xor(plain[0:10], ciph[0:10])))
 }
 
 // Challenge 4
@@ -120,10 +122,10 @@ func BenchmarkChallenge4(b *testing.B) {
 // Challenge 5
 func TestRepeatingXor(t *testing.T) {
 	text := []byte("Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal")
-	encrypted := EncodeHex(Xor(text, []byte("ICE")))
+	ciph := EncodeHex(Xor(text, []byte("ICE")))
 	expected := "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"
-	if encrypted != expected {
-		t.Fatalf("Challenge 5 failed; expected:\n%s\ngot:\n%s\n", expected, encrypted)
+	if ciph != expected {
+		t.Fatalf("Challenge 5 failed; expected:\n%s\ngot:\n%s\n", expected, ciph)
 	}
 }
 
@@ -142,14 +144,14 @@ func TestEditDistance(t *testing.T) {
 	t.Log(dist1, dist2)
 }
 
-func TestVigenere(t *testing.T) {
-	cypher, err := ioutil.ReadFile("challenge-data/6.txt")
+/*func TestVigenere(t *testing.T) {
+	ciph, err := ioutil.ReadFile("challenge-data/6.txt")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cypher = DecodeBase64(string(cypher))
+	ciph = DecodeBase64(string(ciph))
 
-	plain, key := DecryptVigenere(cypher, ScoreEnglish)
+	plain, key := DecryptVigenere(ciph, ScoreEnglish)
 	if !isEnglish(plain) || !isEnglish(key) {
 		t.Fatal("Challenge 6 failed: result is not english.")
 	}
@@ -158,22 +160,43 @@ func TestVigenere(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}*/
 
-	// Try with shorter cypher,
-	// which is more difficult since frequency analysis has less data to work with.
-	plain, key = DecryptVigenere(cypher[0:maxKeysize*scoreMinLength], ScoreEnglish)
-	if !isEnglish(plain) || !isEnglish(key) {
-		t.Fatal("Modified challenge 6 failed: result is not english.")
+// Challenge 7
+func TestDecryptECB(t *testing.T) {
+	text, err := ioutil.ReadFile("challenge-data/7.txt")
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	// Single xor as special case, retest challenge 3:
-	cypher3 := DecodeHex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
-	cypher = make([]byte, maxKeysize*scoreMinLength)
-	for i := range cypher {
-		cypher[i] = cypher3[i%len(cypher3)]
+	text = DecodeBase64(string(text))
+	c, err := aes.NewCipher([]byte("YELLOW SUBMARINE"))
+	if err != nil {
+		t.Fatal(err)
 	}
-	plain, _ = DecryptVigenere(cypher, ScoreEnglish)
+	plain := DecryptECB(text, c)
 	if !isEnglish(plain) {
-		t.Fatal("Challenge 6 failed on single xor: result isn't english.")
+		t.Fatal("Challenge 7 failed: result is not english.")
 	}
+	err = ioutil.WriteFile("challenge-data/7_plain.txt", plain, 0664)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Challenge 8
+func TestDetectECB(t *testing.T) {
+	text, err := ioutil.ReadFile("challenge-data/8.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lineNum := -1
+	for i, line := range strings.Split(string(text), "\n") {
+		if DetectECB(DecodeHex(line), 16) {
+			lineNum = i + 1
+		}
+	}
+	if lineNum == -1 {
+		t.Fatal("Challenge 8 failed: ECB not found.")
+	}
+	t.Log("ECB line number is", lineNum)
 }

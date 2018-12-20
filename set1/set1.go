@@ -1,6 +1,7 @@
 package cryptopals
 
 import (
+	"crypto/cipher"
 	"encoding/base64"
 	"encoding/hex"
 	"io/ioutil"
@@ -121,18 +122,22 @@ func ScoreEnglish(text []byte) float64 {
 	return score / float64(len(text))
 }
 
-func DecryptSingleXor(cypher []byte, score func([]byte) float64) []byte {
-	var plain []byte
+func DecryptSingleXor(text []byte, score func([]byte) float64) []byte {
+	chunkLen := 30
+	if len(text) < chunkLen {
+		chunkLen = len(text)
+	}
+
 	maxScore := math.Inf(-1)
+	key := -1
 	for i := 0; i < 256; i++ {
-		text := Xor(cypher, []byte{byte(i)})
-		s := score(text)
+		s := score(Xor(text[0:chunkLen], []byte{byte(i)}))
 		if s > maxScore {
 			maxScore = s
-			plain = text
+			key = i
 		}
 	}
-	return plain
+	return Xor(text, []byte{byte(key)})
 }
 
 // Challenge 5: see func xor
@@ -153,59 +158,77 @@ func editDistPerBit(a, b []byte) float64 {
 	return float64(editDistance(a, b)) / float64(len(a)*8)
 }
 
-func decryptVigenereSize(cypher []byte, score func([]byte) float64, keysize int) (plain, key []byte) {
-	plain = make([]byte, len(cypher))
-	var buf []byte
-	for offset := 0; offset < keysize; offset++ {
-		buf = buf[0:0]
-		for i := offset; i < len(cypher); i += keysize {
-			buf = append(buf, cypher[i])
-		}
-		buf = DecryptSingleXor(buf, score)
-		for i := range buf {
-			plain[offset+i*keysize] = buf[i]
-		}
-	}
-	key = Xor(cypher[0:keysize], plain[0:keysize])
-	return
-}
-
 const maxKeysize = 40
 
-func DecryptVigenere(cypher []byte, score func([]byte) float64) (plain, key []byte) {
-	if len(cypher) < maxKeysize*scoreMinLength {
-		panic("decryptVigenere: cyphertext too short.")
+func editDistKeysize(text []byte, keysize int) float64 {
+	var dist, n float64
+	for i := 0; i < 4*keysize; i += keysize {
+		dist += editDistPerBit(text[i:i+keysize], text[i+keysize:i+keysize*2])
+		n += 1
 	}
+	return dist / n
+}
 
-	const scoreChunckLen = 30
-	buf := make([]byte, 0, scoreChunckLen)
-	bestScore := math.Inf(-1)
+func findVigenereSize(text []byte) int {
+	minDist := math.Inf(1)
 	keysize := 0
-	for ks := 1; ks <= maxKeysize; ks++ {
-		buf = buf[0:0:scoreChunckLen]
-		for i := 0; i < len(cypher); i += ks {
-			buf = append(buf, cypher[i])
-			if len(buf) == cap(buf) {
-				break
-			}
-		}
-		s := score(DecryptSingleXor(buf, score))
-		if s > bestScore {
-			bestScore = s
+	for ks := 2; ks <= maxKeysize; ks++ {
+		dist := editDistKeysize(text, ks)
+		if dist < minDist {
+			minDist = dist
 			keysize = ks
 		}
 	}
+	return keysize
+}
 
-	/*minDist := math.Inf(1)
-	keysize2 := 0
-	for ks := 21; ks <= 40; ks++ {
-		dist := (editDistPerBit(cypher[0:ks], cypher[ks:ks*2]) + editDistPerBit(cypher[ks:ks*2], cypher[ks*2:ks*3])) / 2
-		if dist < minDist {
-			minDist = dist
-			keysize2 = ks
+func DecryptVigenere(text []byte, score func([]byte) float64) (plain, key []byte) {
+	if len(text) < 2*maxKeysize {
+		panic("DecryptVigenere: text too short.")
+	}
+	keysize := findVigenereSize(text)
+	plain = make([]byte, len(text))
+	var col []byte
+	for offset := 0; offset < keysize; offset++ {
+		col = col[0:0]
+		for i := offset; i < len(text); i += keysize {
+			col = append(col, text[i])
+		}
+		col = DecryptSingleXor(col, score)
+		for i := range col {
+			plain[offset+i*keysize] = col[i]
 		}
 	}
-	bestScore2 := score(decryptVigenereSize(cypher, score, keysize2))*/
+	key = Xor(text[0:keysize], plain[0:keysize])
+	return
+}
 
-	return decryptVigenereSize(cypher, score, keysize)
+// Challenge 7
+func DecryptECB(text []byte, c cipher.Block) []byte {
+	blocksize := c.BlockSize()
+	log.Println(blocksize)
+	if len(text)%blocksize != 0 {
+		panic("DecryptECB: len(text) is not a multiple of BlockSize.")
+	}
+	plain := make([]byte, len(text))
+	for i := 0; i < len(text); i += blocksize {
+		c.Decrypt(plain[i:], text[i:])
+	}
+	return plain
+}
+
+// Challenge 8
+func DetectECB(text []byte, blocksize int) bool {
+	if len(text)%blocksize != 0 {
+		panic("DetectECB: len(text) is not a multiple of blocksize.")
+	}
+	seen := make(map[string]struct{})
+	for i := 0; i < len(text); i += blocksize {
+		block := string(text[i : i+blocksize])
+		if _, ok := seen[block]; ok {
+			return true
+		}
+		seen[block] = struct{}{}
+	}
+	return false
 }
