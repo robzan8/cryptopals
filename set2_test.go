@@ -27,4 +27,12 @@ func TestCBC(t *testing.T) {
 	if string(plain) != string(plain2) {
 		t.Fatal("Challenge 10 failed: encrypt/decrypt round trip doesn't work.")
 	}
+
+	ciph = DecodeBase64(string(readFile(t, "challenge-data/10.txt")))
+	iv = make([]byte, 16)
+	plain = DecryptCBC(iv, ciph, b)
+	if !isEnglish(plain) {
+		t.Fatal("Challenge 10 failed: result is not intelligible.")
+	}
+	writeFile(t, "challenge-data/10_plain.txt", plain)
 }

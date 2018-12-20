@@ -12,6 +12,22 @@ import (
 	"testing"
 )
 
+func readFile(t *testing.T, name string) []byte {
+	t.Helper()
+	text, err := ioutil.ReadFile(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return text
+}
+
+func writeFile(t *testing.T, name string, text []byte) {
+	t.Helper()
+	if err := ioutil.WriteFile(name, text, 0664); err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Challenge 1
 func TestHexToBase64(t *testing.T) {
 	in := "49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"
@@ -81,15 +97,6 @@ func TestChallenge3(t *testing.T) {
 	}
 	t.Log(string(plain))
 	t.Log(string(Xor(plain[0:10], ciph[0:10])))
-}
-
-func readFile(t *testing.T, name string) []byte {
-	t.Helper()
-	text, err := ioutil.ReadFile(name)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return text
 }
 
 // Challenge 4
