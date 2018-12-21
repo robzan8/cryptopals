@@ -1,12 +1,10 @@
 package cryptopals
 
 import (
-	"bufio"
 	"crypto/aes"
 	"io/ioutil"
 	"math"
 	"math/rand"
-	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -101,24 +99,16 @@ func TestChallenge3(t *testing.T) {
 
 // Challenge 4
 func TestChallenge4(t *testing.T) {
-	file, err := os.Open("challenge-data/4.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer file.Close()
-	scanner := bufio.NewScanner(file)
+	text := readFile(t, "challenge-data/4.txt")
 	maxScore := math.Inf(-1)
 	var plain []byte
-	for scanner.Scan() {
-		line := DecryptSingleXor(DecodeHex(scanner.Text()), ScoreEnglish)
+	for _, ciphLine := range strings.Split(string(text), "\n") {
+		line := DecryptSingleXor(DecodeHex(ciphLine), ScoreEnglish)
 		s := ScoreEnglish(line)
 		if s > maxScore {
 			maxScore = s
 			plain = line
 		}
-	}
-	if err := scanner.Err(); err != nil {
-		t.Fatal(err)
 	}
 	if !isEnglish(plain) {
 		t.Fatal("Challenge 4 failed: result isn't english.")
@@ -180,10 +170,7 @@ func TestEditDistance(t *testing.T) {
 
 // Challenge 7
 func TestDecryptECB(t *testing.T) {
-	text, err := ioutil.ReadFile("challenge-data/7.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
+	text := readFile(t, "challenge-data/7.txt")
 	text = DecodeBase64(string(text))
 	c, err := aes.NewCipher([]byte("YELLOW SUBMARINE"))
 	if err != nil {
@@ -193,18 +180,12 @@ func TestDecryptECB(t *testing.T) {
 	if !isEnglish(plain) {
 		t.Fatal("Challenge 7 failed: result is not english.")
 	}
-	err = ioutil.WriteFile("challenge-data/7_plain.txt", plain, 0664)
-	if err != nil {
-		t.Fatal(err)
-	}
+	writeFile(t, "challenge-data/7_plain.txt", plain)
 }
 
 // Challenge 8
 func TestDetectECB(t *testing.T) {
-	text, err := ioutil.ReadFile("challenge-data/8.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
+	text := readFile(t, "challenge-data/8.txt")
 	lineNum := -1
 	for i, line := range strings.Split(string(text), "\n") {
 		if DetectECB(DecodeHex(line), 16) {
