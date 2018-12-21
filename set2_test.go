@@ -2,6 +2,7 @@ package cryptopals
 
 import (
 	"crypto/aes"
+	mathrand "math/rand"
 	"testing"
 )
 
@@ -35,4 +36,17 @@ func TestCBC(t *testing.T) {
 		t.Fatal("Challenge 10 failed: result is not intelligible.")
 	}
 	writeFile(t, "challenge-data/10_plain.txt", plain)
+}
+
+// Challenge 11
+func TestChallenge11(t *testing.T) {
+	for i := int64(0); i < 10; i++ {
+		mathrand.Seed(i)
+		useECB := !(mathrand.Intn(10) < 5)
+		encrypt := randEncrypter(i)
+		ciph := encrypt(make([]byte, 60))
+		if DetectECB(ciph, 16) != useECB {
+			t.Fatal("Challenge 11 failed: could not detect ECB/CBC correctly.")
+		}
+	}
 }

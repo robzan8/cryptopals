@@ -213,17 +213,28 @@ func DecryptVigenere(text []byte, score func([]byte) float64) (plain, key []byte
 }
 
 // Challenge 7
-func DecryptECB(text []byte, c cipher.Block) []byte {
-	blocksize := c.BlockSize()
-	log.Println(blocksize)
+func DecryptECB(text []byte, b cipher.Block) []byte {
+	blocksize := b.BlockSize()
 	if len(text)%blocksize != 0 {
 		panic("DecryptECB: len(text) is not a multiple of BlockSize.")
 	}
 	plain := make([]byte, len(text))
 	for i := 0; i < len(text); i += blocksize {
-		c.Decrypt(plain[i:], text[i:])
+		b.Decrypt(plain[i:], text[i:])
 	}
 	return plain
+}
+
+func EncryptECB(plain []byte, b cipher.Block) []byte {
+	blocksize := b.BlockSize()
+	if len(plain)%blocksize != 0 {
+		panic("EncryptECB: len(plain) is not a multiple of BlockSize.")
+	}
+	ciph := make([]byte, len(plain))
+	for i := 0; i < len(plain); i += blocksize {
+		b.Encrypt(ciph[i:], plain[i:])
+	}
+	return ciph
 }
 
 // Challenge 8

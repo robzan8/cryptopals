@@ -1,6 +1,10 @@
 package cryptopals
 
-import "crypto/cipher"
+import (
+	"crypto/aes"
+	"crypto/cipher"
+	mathrand "math/rand"
+)
 
 // Challenge 9 (PKCS#7 padding)
 func Pad(text []byte, blocksize int) []byte {
@@ -36,4 +40,32 @@ func DecryptCBC(iv []byte, ciph []byte, b cipher.Block) []byte {
 		iv = ciph[i : i+bs]
 	}
 	return plain
+}
+
+// Challenge 11
+func randEncrypter(seed int64) func([]byte) []byte {
+	const blocksize = 16
+	mathrand.Seed(seed)
+	useCBC := mathrand.Intn(10) < 5
+	prefix := make([]byte, 5+mathrand.Intn(6))
+	suffix := make([]byte, 5+mathrand.Intn(6))
+	key := make([]byte, blocksize)
+	iv := make([]byte, blocksize)
+	mathrand.Read(prefix)
+	mathrand.Read(suffix)
+	mathrand.Read(key)
+	mathrand.Read(iv)
+	b, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+	return func(plain []byte) []byte {
+		plain = append(prefix, plain...)
+		plain = append(plain, suffix...)
+		plain = Pad(plain, blocksize)
+		if useCBC {
+			return EncryptCBC(iv, plain, b)
+		}
+		return EncryptECB(plain, b)
+	}
 }

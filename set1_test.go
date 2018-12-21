@@ -4,7 +4,7 @@ import (
 	"crypto/aes"
 	"io/ioutil"
 	"math"
-	"math/rand"
+	mathrand "math/rand"
 	"reflect"
 	"strings"
 	"testing"
@@ -75,8 +75,8 @@ func TestScoreEnglish(t *testing.T) {
 	eng := "Go is an open source programming language that makes it easy to build simple, reliable, and efficient software."
 	t.Logf("Score of english text: %f", ScoreEnglish([]byte(eng)))
 	r := make([]byte, 128)
-	rand.Seed(6654684658386461111)
-	rand.Read(r)
+	mathrand.Seed(6654684658386461111)
+	mathrand.Read(r)
 	t.Logf("Score of pseudorandom bytes: %f", ScoreEnglish(r))
 	xored := Xor([]byte("Go is an open source programming"), []byte("language that makes it"))
 	t.Logf("Score of xored text: %f", ScoreEnglish(xored))
@@ -118,9 +118,9 @@ func TestChallenge4(t *testing.T) {
 
 func BenchmarkChallenge4(b *testing.B) {
 	buf := make([]byte, 100)
-	rand.Seed(666)
+	mathrand.Seed(666)
 	for i := 0; i < b.N; i++ {
-		rand.Read(buf)
+		mathrand.Read(buf)
 		DecryptSingleXor(buf, ScoreEnglish)
 	}
 }
@@ -163,18 +163,23 @@ func TestVigenere(t *testing.T) {
 }
 
 // Challenge 7
-func TestDecryptECB(t *testing.T) {
+func TestECB(t *testing.T) {
 	text := readFile(t, "challenge-data/7.txt")
 	text = DecodeBase64(string(text))
-	c, err := aes.NewCipher([]byte("YELLOW SUBMARINE"))
+	b, err := aes.NewCipher([]byte("YELLOW SUBMARINE"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	plain := DecryptECB(text, c)
+	plain := DecryptECB(text, b)
 	if !isEnglish(plain) {
 		t.Fatal("Challenge 7 failed: result is not english.")
 	}
 	writeFile(t, "challenge-data/7_plain.txt", plain)
+
+	ciph := EncryptECB(plain, b)
+	if string(ciph) != string(text) {
+		t.Fatal("ECB roundtrip does not work.")
+	}
 }
 
 // Challenge 8
