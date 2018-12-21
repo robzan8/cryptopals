@@ -150,11 +150,8 @@ func TestEditDistance(t *testing.T) {
 	t.Log(dist1, dist2)
 }
 
-/*func TestVigenere(t *testing.T) {
-	ciph, err := ioutil.ReadFile("challenge-data/6.txt")
-	if err != nil {
-		t.Fatal(err)
-	}
+func TestVigenere(t *testing.T) {
+	ciph := readFile(t, "challenge-data/6.txt")
 	ciph = DecodeBase64(string(ciph))
 
 	plain, key := DecryptVigenere(ciph, ScoreEnglish)
@@ -162,11 +159,8 @@ func TestEditDistance(t *testing.T) {
 		t.Fatal("Challenge 6 failed: result is not english.")
 	}
 	t.Log(string(key))
-	err = ioutil.WriteFile("challenge-data/6_plain.txt", plain, 0664)
-	if err != nil {
-		t.Fatal(err)
-	}
-}*/
+	writeFile(t, "challenge-data/6_plain.txt", plain)
+}
 
 // Challenge 7
 func TestDecryptECB(t *testing.T) {

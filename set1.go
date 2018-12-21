@@ -158,8 +158,6 @@ func editDistPerBit(a, b []byte) float64 {
 	return float64(editDistance(a, b)) / float64(len(a)*8)
 }
 
-const maxKeysize = 40
-
 func editDistKeysize(text []byte, keysize int) float64 {
 	var dist, n float64
 	for i := 0; i < 4*keysize; i += keysize {
@@ -169,36 +167,47 @@ func editDistKeysize(text []byte, keysize int) float64 {
 	return dist / n
 }
 
-func findVigenereSize(text []byte) int {
-	minDist := math.Inf(1)
+func decryptVigenereSize(text []byte, score func([]byte) float64, keysize int) []byte {
+	plain := make([]byte, len(text))
+	var buf []byte
+	for offset := 0; offset < keysize; offset++ {
+		buf = buf[0:0]
+		for i := offset; i < len(text); i += keysize {
+			buf = append(buf, text[i])
+		}
+		buf = DecryptSingleXor(buf, score)
+		for i := range buf {
+			plain[offset+i*keysize] = buf[i]
+		}
+	}
+	return plain
+}
+
+const maxKeysize = 40
+
+func DecryptVigenere(text []byte, score func([]byte) float64) (plain, key []byte) {
+	if len(text) < maxKeysize*scoreMinLength {
+		panic("DecryptVigenere: cyphertext too short.")
+	}
+	const scoreChunckLen = 30
+	buf := make([]byte, 0, scoreChunckLen)
+	bestScore := math.Inf(-1)
 	keysize := 0
-	for ks := 2; ks <= maxKeysize; ks++ {
-		dist := editDistKeysize(text, ks)
-		if dist < minDist {
-			minDist = dist
+	for ks := 1; ks <= maxKeysize; ks++ {
+		buf = buf[0:0:scoreChunckLen]
+		for i := 0; i < len(text); i += ks {
+			buf = append(buf, text[i])
+			if len(buf) == cap(buf) {
+				break
+			}
+		}
+		s := score(DecryptSingleXor(buf, score))
+		if s > bestScore {
+			bestScore = s
 			keysize = ks
 		}
 	}
-	return keysize
-}
-
-func DecryptVigenere(text []byte, score func([]byte) float64) (plain, key []byte) {
-	if len(text) < 2*maxKeysize {
-		panic("DecryptVigenere: text too short.")
-	}
-	keysize := findVigenereSize(text)
-	plain = make([]byte, len(text))
-	var col []byte
-	for offset := 0; offset < keysize; offset++ {
-		col = col[0:0]
-		for i := offset; i < len(text); i += keysize {
-			col = append(col, text[i])
-		}
-		col = DecryptSingleXor(col, score)
-		for i := range col {
-			plain[offset+i*keysize] = col[i]
-		}
-	}
+	plain = decryptVigenereSize(text, score, keysize)
 	key = Xor(text[0:keysize], plain[0:keysize])
 	return
 }
