@@ -122,22 +122,22 @@ func ScoreEnglish(text []byte) float64 {
 	return score / float64(len(text))
 }
 
-func DecryptSingleXor(text []byte, score func([]byte) float64) []byte {
+func BreakSingleXor(ciph []byte, score func([]byte) float64) []byte {
 	chunkLen := 30
-	if len(text) < chunkLen {
-		chunkLen = len(text)
+	if len(ciph) < chunkLen {
+		chunkLen = len(ciph)
 	}
 
 	maxScore := math.Inf(-1)
 	key := -1
 	for i := 0; i < 256; i++ {
-		s := score(Xor(text[0:chunkLen], []byte{byte(i)}))
+		s := score(Xor(ciph[0:chunkLen], []byte{byte(i)}))
 		if s > maxScore {
 			maxScore = s
 			key = i
 		}
 	}
-	return Xor(text, []byte{byte(key)})
+	return Xor(ciph, []byte{byte(key)})
 }
 
 // Challenge 5: see func xor
@@ -182,36 +182,36 @@ func findVigenereSize(ciph []byte) int {
 	return keysize
 }
 
-func DecryptVigenere(text []byte, score func([]byte) float64) (plain, key []byte) {
-	if len(text) < maxKeysize*scoreMinLength {
-		panic("DecryptVigenere: cyphertext too short.")
+func BreakVigenere(ciph []byte, score func([]byte) float64) (plain, key []byte) {
+	if len(ciph) < maxKeysize*scoreMinLength {
+		panic("BreakVigenere: cyphertext too short.")
 	}
-	keysize := findVigenereSize(text)
-	plain = make([]byte, len(text))
+	keysize := findVigenereSize(ciph)
+	plain = make([]byte, len(ciph))
 	var buf []byte
 	for offset := 0; offset < keysize; offset++ {
 		buf = buf[0:0]
-		for i := offset; i < len(text); i += keysize {
-			buf = append(buf, text[i])
+		for i := offset; i < len(ciph); i += keysize {
+			buf = append(buf, ciph[i])
 		}
-		buf = DecryptSingleXor(buf, score)
+		buf = BreakSingleXor(buf, score)
 		for i := range buf {
 			plain[offset+i*keysize] = buf[i]
 		}
 	}
-	key = Xor(text[0:keysize], plain[0:keysize])
+	key = Xor(ciph[0:keysize], plain[0:keysize])
 	return
 }
 
 // Challenge 7
-func DecryptECB(text []byte, b cipher.Block) []byte {
+func DecryptECB(ciph []byte, b cipher.Block) []byte {
 	blocksize := b.BlockSize()
-	if len(text)%blocksize != 0 {
-		panic("DecryptECB: len(text) is not a multiple of BlockSize.")
+	if len(ciph)%blocksize != 0 {
+		panic("DecryptECB: len(ciph) is not a multiple of BlockSize.")
 	}
-	plain := make([]byte, len(text))
-	for i := 0; i < len(text); i += blocksize {
-		b.Decrypt(plain[i:], text[i:])
+	plain := make([]byte, len(ciph))
+	for i := 0; i < len(ciph); i += blocksize {
+		b.Decrypt(plain[i:], ciph[i:])
 	}
 	return plain
 }
@@ -229,13 +229,13 @@ func EncryptECB(plain []byte, b cipher.Block) []byte {
 }
 
 // Challenge 8
-func DetectECB(text []byte, blocksize int) bool {
-	if len(text)%blocksize != 0 {
-		panic("DetectECB: len(text) is not a multiple of blocksize.")
+func DetectECB(ciph []byte, blocksize int) bool {
+	if len(ciph)%blocksize != 0 {
+		panic("DetectECB: len(ciph) is not a multiple of blocksize.")
 	}
 	seen := make(map[string]struct{})
-	for i := 0; i < len(text); i += blocksize {
-		block := string(text[i : i+blocksize])
+	for i := 0; i < len(ciph); i += blocksize {
+		block := string(ciph[i : i+blocksize])
 		if _, ok := seen[block]; ok {
 			return true
 		}

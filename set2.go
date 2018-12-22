@@ -45,7 +45,7 @@ func DecryptCBC(iv []byte, ciph []byte, b cipher.Block) []byte {
 }
 
 // Challenge 11
-func randEncrypter(seed int64) func([]byte) []byte {
+func RandEncrypter(seed int64) func([]byte) []byte {
 	const blocksize = 16
 	mathrand.Seed(seed)
 	useCBC := mathrand.Intn(10) < 5
@@ -75,7 +75,7 @@ func randEncrypter(seed int64) func([]byte) []byte {
 }
 
 // Challenge 12
-func randEncrypterECB(seed int64, unknown []byte) func([]byte) []byte {
+func RandEncrypterECB(seed int64, unknown []byte) func([]byte) []byte {
 	const blocksize = 16
 	mathrand.Seed(seed)
 	key := make([]byte, blocksize)
@@ -102,4 +102,48 @@ func findBlocksizeECB(encrypt func([]byte) []byte) int {
 		prefix = append(prefix, 'A', 'A')
 	}
 	panic("findBlocksizeECB failed.")
+}
+
+/*
+with blocksize = 4
+unknown:
+0123 4567
+to recover 0:
+AAA0 1234 567-
+to recover 1:
+AA01 2345 67--
+to recover 2:
+A012 3456 7---
+to recover 3:
+0123 4567
+now we have 0123
+to recover 4:
+AAA0 1234
+...
+*/
+func RecoverSuffixECB(encrypt func([]byte) []byte) []byte {
+	blocksize := findBlocksizeECB(encrypt)
+	suffixLen := len(encrypt(nil))
+	if suffixLen%blocksize != 0 {
+		panic("decryptSuffixECB: ecnrypt function doesn't agree with blocksize.")
+	}
+	// We pretend that the unknown suffix starts with Repeat('A', blocksize-1),
+	// as it simplifies building the dictionary.
+	plain := bytes.Repeat([]byte{'A'}, blocksize-1)
+	for b := 0; b < suffixLen; b += blocksize {
+		for i := 0; i < blocksize; i++ {
+			dict := make(map[string]byte)
+			plainBlock := make([]byte, blocksize)
+			for c := 0; c < 256; c++ {
+				copy(plainBlock[0:blocksize-1], plain[b+i:])
+				plainBlock[blocksize-1] = byte(c)
+				ciphBlock := encrypt(plainBlock)[0:blocksize]
+				dict[string(ciphBlock)] = byte(c)
+			}
+			prefix := plain[0 : blocksize-i-1] // all 'A's
+			ciphBlock := encrypt(prefix)[b : b+blocksize]
+			plain = append(plain, dict[string(ciphBlock)])
+		}
+	}
+	return plain[blocksize-1:]
 }

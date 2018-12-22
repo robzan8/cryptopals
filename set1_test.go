@@ -89,7 +89,7 @@ func isEnglish(text []byte) bool {
 
 func TestChallenge3(t *testing.T) {
 	ciph := DecodeHex("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
-	plain := DecryptSingleXor(ciph, ScoreEnglish)
+	plain := BreakSingleXor(ciph, ScoreEnglish)
 	if !isEnglish(plain) {
 		t.Fatal("Challenge 3 failed: result isn't english.")
 	}
@@ -103,7 +103,7 @@ func TestChallenge4(t *testing.T) {
 	maxScore := math.Inf(-1)
 	var plain []byte
 	for _, ciphLine := range strings.Split(string(text), "\n") {
-		line := DecryptSingleXor(DecodeHex(ciphLine), ScoreEnglish)
+		line := BreakSingleXor(DecodeHex(ciphLine), ScoreEnglish)
 		s := ScoreEnglish(line)
 		if s > maxScore {
 			maxScore = s
@@ -121,14 +121,14 @@ func BenchmarkChallenge4(b *testing.B) {
 	mathrand.Seed(666)
 	for i := 0; i < b.N; i++ {
 		mathrand.Read(buf)
-		DecryptSingleXor(buf, ScoreEnglish)
+		BreakSingleXor(buf, ScoreEnglish)
 	}
 }
 
 // Challenge 5
 func TestRepeatingXor(t *testing.T) {
-	text := []byte("Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal")
-	ciph := EncodeHex(Xor(text, []byte("ICE")))
+	plain := []byte("Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal")
+	ciph := EncodeHex(Xor(plain, []byte("ICE")))
 	expected := "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"
 	if ciph != expected {
 		t.Fatalf("Challenge 5 failed; expected:\n%s\ngot:\n%s\n", expected, ciph)
@@ -154,8 +154,8 @@ func TestVigenere(t *testing.T) {
 	ciph := readFile(t, "challenge-data/6.txt")
 	ciph = DecodeBase64(string(ciph))
 
-	plain, key := DecryptVigenere(ciph, ScoreEnglish)
-	if !isEnglish(plain) || !isEnglish(key) {
+	plain, key := BreakVigenere(ciph, ScoreEnglish)
+	if !isEnglish(plain) {
 		t.Fatal("Challenge 6 failed: result is not english.")
 	}
 	t.Log(string(key))
