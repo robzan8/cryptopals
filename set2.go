@@ -1,12 +1,14 @@
 package cryptopals
 
 import (
+	"bytes"
 	"crypto/aes"
 	"crypto/cipher"
 	mathrand "math/rand"
 )
 
 // Challenge 9 (PKCS#7 padding)
+// Pad may append to text's underlying array!
 func Pad(text []byte, blocksize int) []byte {
 	for len(text)%blocksize != 0 {
 		text = append(text, '\x04')
@@ -60,12 +62,44 @@ func randEncrypter(seed int64) func([]byte) []byte {
 		panic(err)
 	}
 	return func(plain []byte) []byte {
-		plain = append(prefix, plain...)
-		plain = append(plain, suffix...)
-		plain = Pad(plain, blocksize)
+		var msg []byte
+		msg = append(msg, prefix...)
+		msg = append(msg, plain...)
+		msg = append(msg, suffix...)
+		msg = Pad(msg, blocksize)
 		if useCBC {
-			return EncryptCBC(iv, plain, b)
+			return EncryptCBC(iv, msg, b)
 		}
-		return EncryptECB(plain, b)
+		return EncryptECB(msg, b)
 	}
+}
+
+// Challenge 12
+func randEncrypterECB(seed int64, unknown []byte) func([]byte) []byte {
+	const blocksize = 16
+	mathrand.Seed(seed)
+	key := make([]byte, blocksize)
+	mathrand.Read(key)
+	b, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+	return func(prefix []byte) []byte {
+		var msg []byte
+		msg = append(msg, prefix...)
+		msg = append(msg, unknown...)
+		return EncryptECB(Pad(msg, blocksize), b)
+	}
+}
+
+func findBlocksizeECB(encrypt func([]byte) []byte) int {
+	prefix := bytes.Repeat([]byte{'A'}, 8)
+	for bs := 4; bs <= 128; bs++ {
+		ciph := encrypt(prefix)
+		if string(ciph[0:bs]) == string(ciph[bs:bs*2]) {
+			return bs
+		}
+		prefix = append(prefix, 'A', 'A')
+	}
+	panic("findBlocksizeECB failed.")
 }

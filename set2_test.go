@@ -40,13 +40,24 @@ func TestCBC(t *testing.T) {
 
 // Challenge 11
 func TestChallenge11(t *testing.T) {
-	for i := int64(0); i < 10; i++ {
+	for i := int64(0); i < 20; i++ {
 		mathrand.Seed(i)
 		useECB := !(mathrand.Intn(10) < 5)
 		encrypt := randEncrypter(i)
-		ciph := encrypt(make([]byte, 60))
+		ciph := encrypt(make([]byte, 100))
 		if DetectECB(ciph, 16) != useECB {
 			t.Fatal("Challenge 11 failed: could not detect ECB/CBC correctly.")
 		}
 	}
+}
+
+// Challenge 12
+func TestChallenge12(t *testing.T) {
+	unknown := DecodeBase64(
+		`Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkg
+aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq
+dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg
+YnkK`)
+	encrypt := randEncrypterECB(4687537893121534684, unknown)
+	t.Log(findBlocksizeECB(encrypt))
 }

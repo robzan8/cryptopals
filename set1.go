@@ -158,17 +158,36 @@ func editDistPerBit(a, b []byte) float64 {
 	return float64(editDistance(a, b)) / float64(len(a)*8)
 }
 
-func editDistKeysize(text []byte, keysize int) float64 {
+func editDistKeysize(text []byte, ks int) float64 {
 	var dist, n float64
-	for i := 0; i < 4*keysize; i += keysize {
-		dist += editDistPerBit(text[i:i+keysize], text[i+keysize:i+keysize*2])
+	for i := ks; i < 100; i += ks {
+		dist += editDistPerBit(text[i-ks:i], text[i:i+ks])
 		n += 1
 	}
 	return dist / n
 }
 
-func decryptVigenereSize(text []byte, score func([]byte) float64, keysize int) []byte {
-	plain := make([]byte, len(text))
+const maxKeysize = 40
+
+func findVigenereSize(ciph []byte) int {
+	minDist := math.Inf(1)
+	keysize := -1
+	for ks := 1; ks < maxKeysize; ks++ {
+		dist := editDistKeysize(ciph, ks)
+		if dist < minDist {
+			minDist = dist
+			keysize = ks
+		}
+	}
+	return keysize
+}
+
+func DecryptVigenere(text []byte, score func([]byte) float64) (plain, key []byte) {
+	if len(text) < maxKeysize*scoreMinLength {
+		panic("DecryptVigenere: cyphertext too short.")
+	}
+	keysize := findVigenereSize(text)
+	plain = make([]byte, len(text))
 	var buf []byte
 	for offset := 0; offset < keysize; offset++ {
 		buf = buf[0:0]
@@ -180,34 +199,6 @@ func decryptVigenereSize(text []byte, score func([]byte) float64, keysize int) [
 			plain[offset+i*keysize] = buf[i]
 		}
 	}
-	return plain
-}
-
-const maxKeysize = 40
-
-func DecryptVigenere(text []byte, score func([]byte) float64) (plain, key []byte) {
-	if len(text) < maxKeysize*scoreMinLength {
-		panic("DecryptVigenere: cyphertext too short.")
-	}
-	const scoreChunckLen = 30
-	buf := make([]byte, 0, scoreChunckLen)
-	bestScore := math.Inf(-1)
-	keysize := 0
-	for ks := 1; ks <= maxKeysize; ks++ {
-		buf = buf[0:0:scoreChunckLen]
-		for i := 0; i < len(text); i += ks {
-			buf = append(buf, text[i])
-			if len(buf) == cap(buf) {
-				break
-			}
-		}
-		s := score(DecryptSingleXor(buf, score))
-		if s > bestScore {
-			bestScore = s
-			keysize = ks
-		}
-	}
-	plain = decryptVigenereSize(text, score, keysize)
 	key = Xor(text[0:keysize], plain[0:keysize])
 	return
 }
