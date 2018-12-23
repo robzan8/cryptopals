@@ -5,6 +5,8 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	mathrand "math/rand"
+	"strconv"
+	"strings"
 )
 
 // Challenge 9 (PKCS#7 padding)
@@ -12,6 +14,13 @@ import (
 func Pad(text []byte, blocksize int) []byte {
 	for len(text)%blocksize != 0 {
 		text = append(text, '\x04')
+	}
+	return text
+}
+
+func Unpad(text []byte) []byte {
+	for len(text) > 0 && text[len(text)-1] == '\x04' {
+		text = text[0 : len(text)-1]
 	}
 	return text
 }
@@ -45,7 +54,7 @@ func DecryptCBC(iv []byte, ciph []byte, b cipher.Block) []byte {
 }
 
 // Challenge 11
-func RandEncrypter(seed int64) func([]byte) []byte {
+func encryptionOracle11(seed int64) func([]byte) []byte {
 	const blocksize = 16
 	mathrand.Seed(seed)
 	useCBC := mathrand.Intn(10) < 5
@@ -75,7 +84,7 @@ func RandEncrypter(seed int64) func([]byte) []byte {
 }
 
 // Challenge 12
-func RandEncrypterECB(seed int64, unknown []byte) func([]byte) []byte {
+func encryptionOracle12(seed int64, unknown []byte) func([]byte) []byte {
 	const blocksize = 16
 	mathrand.Seed(seed)
 	key := make([]byte, blocksize)
@@ -101,7 +110,7 @@ func findBlocksizeECB(encrypt func([]byte) []byte) int {
 		}
 		prefix = append(prefix, 'A', 'A')
 	}
-	panic("findBlocksizeECB failed.")
+	return -1
 }
 
 /*
@@ -146,4 +155,42 @@ func RecoverSuffixECB(encrypt func([]byte) []byte) []byte {
 		}
 	}
 	return plain[blocksize-1:]
+}
+
+// Challenge 13
+func profileFor(email string, uid int) string {
+	if strings.ContainsAny(email, "&=") {
+		panic("profileFor: email contains metacharacters & or =")
+	}
+	return "email=" + email + "&uid=" + strconv.Itoa(uid) + "&role=user"
+}
+
+func profileEncrypter(seed int64) func(email string) []byte {
+	const blocksize = 16
+	mathrand.Seed(seed)
+	key := make([]byte, blocksize)
+	mathrand.Read(key)
+	b, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+	uid := 10 + mathrand.Intn(90) // always two digits, to make it a little bit easier
+	return func(email string) []byte {
+		msg := []byte(profileFor(email, uid))
+		return EncryptECB(Pad(msg, blocksize), b)
+	}
+}
+
+func profileDecrypter(seed int64) func([]byte) []byte {
+	const blocksize = 16
+	mathrand.Seed(seed)
+	key := make([]byte, blocksize)
+	mathrand.Read(key)
+	b, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err)
+	}
+	return func(ciph []byte) []byte {
+		return Unpad(DecryptECB(ciph, b))
+	}
 }

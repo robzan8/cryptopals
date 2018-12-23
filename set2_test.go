@@ -43,7 +43,7 @@ func TestChallenge11(t *testing.T) {
 	for i := int64(0); i < 20; i++ {
 		mathrand.Seed(i)
 		useECB := !(mathrand.Intn(10) < 5)
-		encrypt := RandEncrypter(i)
+		encrypt := encryptionOracle11(i)
 		ciph := encrypt(make([]byte, 100))
 		if DetectECB(ciph, 16) != useECB {
 			t.Fatal("Challenge 11 failed: could not detect ECB/CBC correctly.")
@@ -58,10 +58,27 @@ func TestChallenge12(t *testing.T) {
 aGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBq
 dXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUg
 YnkK`)
-	encrypt := RandEncrypterECB(4687537893121534684, unknown)
+	encrypt := encryptionOracle12(4687537893121534684, unknown)
 	known := RecoverSuffixECB(encrypt)
-	if string(known) != string(Pad(unknown, 16)) {
+	if string(Unpad(known)) != string(unknown) {
 		t.Fatal("Challenge 12 failed: could not recover the suffix.")
 	}
 	t.Log(string(unknown))
+}
+
+// Challenge 13
+
+func TestProfileFor(t *testing.T) {
+	if profileFor("a@b.c", 666) != "email=a@b.c&uid=666&role=user" {
+		t.Fatal("profileFor failed.")
+	}
+}
+
+func TestChallenge13(t *testing.T) {
+	const blocksize = 16
+	var seed int64 = 1234567809876543
+	encrypt := profileEncrypter(seed)
+	decrypt := profileDecrypter(seed)
+
+	_, _ = encrypt, decrypt
 }
