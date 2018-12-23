@@ -3,6 +3,7 @@ package cryptopals
 import (
 	"crypto/aes"
 	mathrand "math/rand"
+	"strings"
 	"testing"
 )
 
@@ -75,10 +76,17 @@ func TestProfileFor(t *testing.T) {
 }
 
 func TestChallenge13(t *testing.T) {
-	const blocksize = 16
 	var seed int64 = 1234567809876543
 	encrypt := profileEncrypter(seed)
 	decrypt := profileDecrypter(seed)
 
-	_, _ = encrypt, decrypt
+	// assume blocksize is 16
+	block12 := encrypt("foo@barmail.x")[0:32]   // [email=foo@barmail.x&uid=??&role=]user
+	block3 := encrypt("mail@mail.admin")[16:32] // email=mail@mail.[admin&uid=??&rol]e=user
+	craft := append(block12, block3...)         // email=foo@barmail.x&uid=??&role=admin&uid=??&rol
+	res := string(decrypt(craft))
+	if !strings.Contains(res, "role=admin") || strings.Contains(res, "role=user") {
+		t.Fatal("Challenge 13 failed.")
+	}
+	t.Log(string(res))
 }
